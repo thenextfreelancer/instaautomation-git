@@ -140,9 +140,18 @@ public class SeleniumWorker {
             Utils.sleep();
             List<WebElement> followersList = getListFromPopup();
             int count = 0;
+            String xpath1 = "div/div[2]/div/div/div/a";
+            String xpath2 = "div/div[1]/div[2]/div[1]/a";
+            String profileLink = null;
             while (count < noOfFollowers) {
-                WebElement followerListItem = followersList.get(count);
-                String profileLink = followerListItem.findElement(By.xpath("div/div[1]/div[2]/div[1]/a")).getAttribute("href");
+                WebElement followerListItem = followersList.get(count);//previously it was div/div[1]/div[2]/div[1]/a               
+                WebElement link = null;
+                try{
+                    link = followerListItem.findElement(By.xpath(xpath1));
+                } catch(Exception e){
+                    link = followerListItem.findElement(By.xpath(xpath2));
+                }
+                profileLink = link.getAttribute("href");
                 Utils.appendText(textArea, profileLink);
                 count++;
 
