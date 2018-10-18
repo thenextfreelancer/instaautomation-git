@@ -622,14 +622,16 @@ public class InstaAutomationPanel extends javax.swing.JPanel {
                         }
                         iteration++;
                     }
-
+                    
+                    //Scheduling the unfollow schedular after following the users
+                    if (!isSchedularOn) {
+                        this.isSchedularOn = true;
+                        runUnfollowScheduler();
+                    }
                 } else {
                     JOptionPane.showMessageDialog(null, "No users to follow.");
                 }
-            }
-            if (!isSchedularOn) {
-                this.isSchedularOn = true;
-                runUnfollowScheduler();
+
             }
 
         } catch (HeadlessException e) {
