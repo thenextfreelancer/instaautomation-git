@@ -7,6 +7,7 @@ import javax.swing.JOptionPane;
 import com.instagram.AppConfig;
 import com.instagram.FileUtils;
 import com.instagram.SeleniumWorker;
+import com.instagram.Unfollower;
 import com.instagram.Utils;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,6 +15,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.swing.JTextArea;
+import org.quartz.JobBuilder;
+import org.quartz.JobDetail;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
+import org.quartz.SchedulerFactory;
+import org.quartz.SimpleScheduleBuilder;
+import org.quartz.Trigger;
+import org.quartz.TriggerBuilder;
+import org.quartz.impl.StdSchedulerFactory;
 
 /*
  * To change this license header, choose License Headers in Project Properties.
@@ -34,6 +44,8 @@ public class InstaAutomationPanel extends javax.swing.JPanel {
     public AppConfig config;
 
     public SeleniumWorker worker;
+
+    private boolean isSchedularOn = false;
 
     /**
      * Creates new form NewJPanel
@@ -99,7 +111,6 @@ public class InstaAutomationPanel extends javax.swing.JPanel {
         jLabel18 = new javax.swing.JLabel();
         startFollowing = new javax.swing.JButton();
         stopFollow = new javax.swing.JButton();
-        unfollowButton = new javax.swing.JButton();
 
         setBackground(new java.awt.Color(255, 255, 255));
         setMaximumSize(new java.awt.Dimension(944, 711));
@@ -480,15 +491,6 @@ public class InstaAutomationPanel extends javax.swing.JPanel {
             }
         });
 
-        unfollowButton.setBackground(new java.awt.Color(153, 0, 153));
-        unfollowButton.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
-        unfollowButton.setText("Unfollow");
-        unfollowButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                unfollowButtonActionPerformed(evt);
-            }
-        });
-
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
@@ -501,8 +503,7 @@ public class InstaAutomationPanel extends javax.swing.JPanel {
                         .addComponent(startFollowing)
                         .addGap(35, 35, 35)
                         .addComponent(stopFollow)
-                        .addGap(227, 227, 227)
-                        .addComponent(unfollowButton, javax.swing.GroupLayout.PREFERRED_SIZE, 155, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(382, 382, 382))
                     .addComponent(jScrollPane4)
                     .addComponent(jScrollPane5)
                     .addGroup(jPanel3Layout.createSequentialGroup()
@@ -518,8 +519,7 @@ public class InstaAutomationPanel extends javax.swing.JPanel {
                 .addContainerGap()
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(startFollowing, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(stopFollow, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(unfollowButton, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(stopFollow, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(18, 18, 18)
                 .addComponent(jLabel18)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -527,7 +527,7 @@ public class InstaAutomationPanel extends javax.swing.JPanel {
                 .addGap(18, 18, 18)
                 .addComponent(jLabel17)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane5, javax.swing.GroupLayout.DEFAULT_SIZE, 106, Short.MAX_VALUE)
+                .addComponent(jScrollPane5, javax.swing.GroupLayout.DEFAULT_SIZE, 109, Short.MAX_VALUE)
                 .addGap(38, 38, 38))
         );
 
@@ -558,7 +558,6 @@ public class InstaAutomationPanel extends javax.swing.JPanel {
             if (validateForm(config)) {
                 worker = SeleniumWorker.getInstance(config);
                 try {
-
                     List<String> list = getListFromTextArea(influencerListTextArea);
                     if (!list.isEmpty()) {
                         logSource("Getting influencers from list...");
@@ -628,6 +627,11 @@ public class InstaAutomationPanel extends javax.swing.JPanel {
                     JOptionPane.showMessageDialog(null, "No users to follow.");
                 }
             }
+            if (!isSchedularOn) {
+                this.isSchedularOn = true;
+                runUnfollowScheduler();
+            }
+
         } catch (HeadlessException e) {
             logFollow(e.getLocalizedMessage());
         }
@@ -668,12 +672,27 @@ public class InstaAutomationPanel extends javax.swing.JPanel {
         // TODO add your handling code here:
     }//GEN-LAST:event_followCount1ActionPerformed
 
-    private void unfollowButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_unfollowButtonActionPerformed
-        if (validateForm(config)) {
-            FileUtils f = new FileUtils();
-            f.unfollow(config, followLogsTextArea);
+    private void runUnfollowScheduler() {
+        try {
+            // specify the job' s details..
+            JobDetail job = JobBuilder.newJob(Unfollower.class).withIdentity("testJob").build();
+            job.getJobDataMap().put("config", config);
+            job.getJobDataMap().put("textArea", followLogsTextArea);
+            // specify the running period of the job
+            Trigger trigger = TriggerBuilder.newTrigger()
+                    .withSchedule(SimpleScheduleBuilder.simpleSchedule()
+                            .withIntervalInHours(24).repeatForever()).build();
+
+            //schedule the job
+            SchedulerFactory schFactory = new StdSchedulerFactory();
+            Scheduler sch = schFactory.getScheduler();
+            sch.start();
+            sch.scheduleJob(job, trigger);
+
+        } catch (SchedulerException e) {
+            e.printStackTrace();
         }
-    }//GEN-LAST:event_unfollowButtonActionPerformed
+    }
 
     private AppConfig getAppConfig() {
         AppConfig conf = null;
@@ -809,7 +828,6 @@ public class InstaAutomationPanel extends javax.swing.JPanel {
     private javax.swing.JButton startSearch;
     private javax.swing.JButton stopFollow;
     private javax.swing.JButton stopSearch;
-    private javax.swing.JButton unfollowButton;
     private javax.swing.JTextField unfollowDays;
     private javax.swing.JTextField userName;
     private javax.swing.JTextArea usersToFollowTextArea;
